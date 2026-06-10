@@ -16,5 +16,5 @@
 
 ## 制作
 
-[のざたん（野崎浩平）](https://meetupsensei.com) — 会いに行けるセンセイ  
+[のざたん](https://meetupsensei.com) — 会いに行けるセンセイ  
 Voicy「学びのセカンドオピニオン」/ note / Canvassador 2026
