@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>モンティ・ホール問題シミュレーター</title>
+<meta name="description" content="3〜100枚のドアで「変える / 変えない」を体感し、戦略ごとの勝率を比較できるモンティ・ホール問題の教材シミュレーターです。">
+<!-- OGP -->
+<meta property="og:title" content="モンティ・ホール問題シミュレーター">
+<meta property="og:description" content="ドアを3〜100枚に変えて体感。「変える」と「変えない」の勝率を比べて、直感に反する確率を理解する教材です。">
+<meta property="og:image" content="https://montyhall.meetupsensei.com/ogp.jpg">
+<meta property="og:url" content="https://montyhall.meetupsensei.com/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --bg:#f4f5f6; --surface:#ffffff; --border:#dfe3e8;
+    --text:#2c3137; --text-sub:#6b7280;
+    --accent:#3a6ea5; --accent-soft:#eaf1f8;
+    --door:#8a94a6; --door-pick:#3a6ea5; --door-target:#c5852f;
+    --win:#3f9b6e; --lose:#b0563f;
+  }
+  [data-theme="dark"]{
+    --bg:#1f2329; --surface:#2a2f37; --border:#3a414b;
+    --text:#e6e8ea; --text-sub:#9aa3ad;
+    --accent:#5b8fc7; --accent-soft:#2b3744;
+    --door:#4a525e; --door-pick:#5b8fc7; --door-target:#c5852f;
+    --win:#4cae7e; --lose:#c46b52;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
+    line-height:1.7; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:20px 16px 60px;}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px;}
+  h1{font-size:1.35rem; margin:0 0 4px;}
+  .lead{color:var(--text-sub); font-size:.9rem; margin:0;}
+  .theme-btn{
+    flex:0 0 auto; background:var(--surface); color:var(--text);
+    border:1px solid var(--border); border-radius:8px; padding:6px 10px;
+    font-size:.85rem; cursor:pointer;
+  }
+  .head-btns{flex:0 0 auto; display:flex; gap:8px;}
+  .card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:16px; margin-top:16px;
+  }
+  .controls{display:flex; align-items:center; flex-wrap:wrap; gap:12px;}
+  .controls label{font-size:.9rem; color:var(--text-sub);}
+  .doornum{font-weight:700; color:var(--text); font-size:1.05rem; min-width:2.5em; display:inline-block; text-align:right;}
+  input[type=range]{flex:1; min-width:160px; accent-color:var(--accent);}
+  .btn{
+    background:var(--accent); color:#fff; border:none; border-radius:8px;
+    padding:10px 16px; font-size:.95rem; cursor:pointer;
+  }
+  .btn.sub{background:var(--surface); color:var(--accent); border:1px solid var(--accent);}
+  .btn.stay{background:var(--door-pick); color:#fff; border:1px solid var(--door-pick);}
+  .btn.switch{background:var(--door-target); color:#fff; border:1px solid var(--door-target);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .msg{font-size:1rem; margin:4px 0 14px; min-height:1.7em;}
+  .msg.win{color:var(--win); font-weight:700;}
+  .msg.lose{color:var(--lose); font-weight:700;}
+  .hint{color:var(--text-sub); font-size:.85rem;}
+  .doors{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(58px,1fr));
+    gap:8px; margin:14px 0;
+  }
+  .door{
+    aspect-ratio:3/4; border:1px solid var(--border); border-radius:6px;
+    background:var(--door); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1rem; cursor:pointer; user-select:none; position:relative;
+    transition:none;
+  }
+  .door .no{font-size:.7rem; opacity:.85;}
+  .door.disabled{cursor:default;}
+  .door.pick{background:var(--door-pick);}
+  .door.target{background:var(--door-target);}
+  .door.opened{background:var(--surface); color:var(--text); border-color:var(--border);}
+  .door .face{font-size:1.4rem;}
+  .door .tag{position:absolute; top:2px; left:0; right:0; text-align:center; font-size:.6rem;}
+  .decide{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
+  .stats{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .stat{border:1px solid var(--border); border-radius:8px; padding:12px;}
+  .stat h3{margin:0 0 6px; font-size:.9rem; color:var(--text-sub); font-weight:600;}
+  .stat .rate{font-size:1.6rem; font-weight:700;}
+  .stat .detail{font-size:.8rem; color:var(--text-sub);}
+  .stat .theory{font-size:.78rem; color:var(--accent); margin-top:4px;}
+  .reset-row{margin-top:12px; text-align:right;}
+  .reset-row button{background:none; border:none; color:var(--text-sub); font-size:.82rem; cursor:pointer; text-decoration:underline;}
+  details{margin-top:16px; font-size:.9rem;}
+  details summary{cursor:pointer; color:var(--accent); font-weight:600;}
+  details p{color:var(--text); }
+  footer{margin-top:32px; text-align:center; font-size:.8rem; color:var(--text-sub);}
+  footer a{color:var(--text-sub);}
+  @media(max-width:520px){
+    .stats{grid-template-columns:1fr;}
+    .doors{grid-template-columns:repeat(auto-fill,minmax(48px,1fr)); gap:6px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1 id="title">モンティ・ホール問題シミュレーター</h1>
+      <p class="lead" id="lead">ドアを選び、司会者がハズレを開けたあと「変える / 変えない」を決めよう。</p>
+    </div>
+    <div class="head-btns">
+      <button class="theme-btn" id="langBtn" type="button">EN</button>
+      <button class="theme-btn" id="themeBtn" type="button">🌙 ダーク</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="controls">
+      <label for="range" id="lblDoorCount">ドアの枚数</label>
+      <input type="range" id="range" min="3" max="100" value="3">
+      <span class="doornum" id="doornum">3</span>
+      <button class="btn sub" id="newGame" type="button">この枚数で始める</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="msg" id="msg">ドアを1枚選んでください。当たりは「車 🚗」、ハズレは「ヤギ 🐐」です。</p>
+    <div class="doors" id="doors"></div>
+    <div class="decide" id="decide" style="display:none;">
+      <button class="btn stay" id="stayBtn" type="button">変えない（最初の選択のまま）</button>
+      <button class="btn switch" id="switchBtn" type="button">残ったドアに変える</button>
+    </div>
+    <div id="nextRow" style="display:none; margin-top:6px;">
+      <button class="btn" id="nextBtn" type="button">次のゲーム</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat">
+        <h3 id="switchHead">変えた場合</h3>
+        <div class="rate" id="switchRate">—</div>
+        <div class="detail" id="switchDetail">0勝 / 0回</div>
+        <div class="theory" id="switchTheory"></div>
+      </div>
+      <div class="stat">
+        <h3 id="stayHead">変えなかった場合</h3>
+        <div class="rate" id="stayRate">—</div>
+        <div class="detail" id="stayDetail">0勝 / 0回</div>
+        <div class="theory" id="stayTheory"></div>
+      </div>
+    </div>
+    <div class="reset-row"><button id="resetStats" type="button">記録をリセット</button></div>
+  </div>
+
+  <details>
+    <summary id="detailsSummary">なぜ「変えた方が」有利なの？</summary>
+    <p id="detailsBody">最初に選んだ1枚が当たりである確率は <strong>1/枚数</strong>。残り全部が当たりの確率は <strong>(枚数−1)/枚数</strong> です。司会者は必ずハズレを開けてくれるので、その「残り全部」の確率が、変更先の1枚に集まります。<br>
+    ドアを100枚にして何度かプレイすると、「変える」と当たりばかりになるのが体感できます。最初の1枚を当てるのは100回に1回だけ、ということです。</p>
+  </details>
+
+  <footer id="footer">
+    制作：のざたん（野崎浩平）／ <a href="https://meetupsensei.com" target="_blank" rel="noopener">meetupsensei.com</a>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var range=document.getElementById('range');
+  var doornumEl=document.getElementById('doornum');
+  var doorsEl=document.getElementById('doors');
+  var msgEl=document.getElementById('msg');
+  var decideEl=document.getElementById('decide');
+  var nextRow=document.getElementById('nextRow');
+  var stayBtn=document.getElementById('stayBtn');
+  var switchBtn=document.getElementById('switchBtn');
+  var nextBtn=document.getElementById('nextBtn');
+  var newGameBtn=document.getElementById('newGame');
+  var themeBtn=document.getElementById('themeBtn');
+  var langBtn=document.getElementById('langBtn');
+
+  // 多言語辞書
+  var dict={
+    ja:{
+      title:'モンティ・ホール問題シミュレーター',
+      lead:'ドアを選び、司会者がハズレを開けたあと「変える / 変えない」を決めよう。',
+      doorCountLabel:'ドアの枚数',
+      startBtn:'この枚数で始める',
+      pickMsg:'ドアを1枚選んでください。当たりは「車 🚗」、ハズレは「ヤギ 🐐」です。',
+      decideMsg:function(n){ return '司会者がハズレを'+n+'枚開けました。残りは2枚です。<span class="hint">（青＝最初の選択 / 橙＝残ったもう1枚）</span>'; },
+      resultMsg:function(win,sw){ return (win?'🎉 当たり！ ':'残念… ハズレ ')+'（'+(sw?'変えた':'変えなかった')+'）'; },
+      stayBtn:'変えない（最初の選択のまま）',
+      switchBtn:'残ったドアに変える',
+      nextBtn:'次のゲーム',
+      switchHead:'変えた場合',
+      stayHead:'変えなかった場合',
+      detail:function(w,t){ return w+'勝 / '+t+'回'; },
+      theory:function(n,p){ return '理論値（'+n+'枚）：約'+p+'%'; },
+      resetStats:'記録をリセット',
+      firstPickTag:'最初の選択',
+      detailsSummary:'なぜ「変えた方が」有利なの？',
+      detailsBody:'最初に選んだ1枚が当たりである確率は <strong>1/枚数</strong>。残り全部が当たりの確率は <strong>(枚数−1)/枚数</strong> です。司会者は必ずハズレを開けてくれるので、その「残り全部」の確率が、変更先の1枚に集まります。<br>ドアを100枚にして何度かプレイすると、「変える」と当たりばかりになるのが体感できます。最初の1枚を当てるのは100回に1回だけ、ということです。',
+      footer:'制作：のざたん（野崎浩平）／ <a href="https://meetupsensei.com" target="_blank" rel="noopener">meetupsensei.com</a>',
+      themeDark:'🌙 ダーク', themeLight:'☀️ ライト'
+    },
+    en:{
+      title:'Monty Hall Problem Simulator',
+      lead:'Pick a door. After the host opens losing doors, decide whether to switch or stay.',
+      doorCountLabel:'Number of doors',
+      startBtn:'Start with this count',
+      pickMsg:'Pick a door. The prize is a car 🚗; the rest are goats 🐐.',
+      decideMsg:function(n){ return 'The host opened '+n+' losing door'+(n===1?'':'s')+'. Two doors remain. <span class="hint">(Blue = your first pick / Orange = the other remaining door)</span>'; },
+      resultMsg:function(win,sw){ return (win?'🎉 You win! ':'Sorry, you lose ')+'('+(sw?'switched':'stayed')+')'; },
+      stayBtn:'Stay (keep first pick)',
+      switchBtn:'Switch to the other door',
+      nextBtn:'Next game',
+      switchHead:'If you switch',
+      stayHead:'If you stay',
+      detail:function(w,t){ return w+' wins / '+t+' plays'; },
+      theory:function(n,p){ return 'Theory ('+n+' doors): ~'+p+'%'; },
+      resetStats:'Reset record',
+      firstPickTag:'First pick',
+      detailsSummary:'Why is switching better?',
+      detailsBody:'The chance your first pick is the car is <strong>1 / doors</strong>, while the chance it is among the rest is <strong>(doors − 1) / doors</strong>. Because the host always opens losing doors, that larger probability collapses onto the single door you can switch to.<br>Set the doors to 100 and play a few times: switching wins almost every time, since your first pick is right only 1 in 100.',
+      footer:'Created by Nozatan (Kohei Nozaki) / <a href="https://meetupsensei.com" target="_blank" rel="noopener">meetupsensei.com</a>',
+      themeDark:'🌙 Dark', themeLight:'☀️ Light'
+    }
+  };
+
+  var state={n:3, prize:0, selected:-1, target:-1, opened:[], stage:'pick', lang:'ja', openedCount:0, last:{win:false,sw:false}};
+  var stats={swWin:0, swTot:0, stWin:0, stTot:0};
+
+  function t(){ return dict[state.lang]; }
+  function rand(max){return Math.floor(Math.random()*max);}
+
+  function setMsg(){
+    if(state.stage==='pick'){ msgEl.className='msg'; msgEl.textContent=t().pickMsg; }
+    else if(state.stage==='decide'){ msgEl.className='msg'; msgEl.innerHTML=t().decideMsg(state.openedCount); }
+    else if(state.stage==='result'){ msgEl.className='msg '+(state.last.win?'win':'lose'); msgEl.textContent=t().resultMsg(state.last.win,state.last.sw); }
+  }
+
+  function startGame(){
+    var n=state.n;
+    state.prize=rand(n);
+    state.selected=-1;
+    state.target=-1;
+    state.opened=[];
+    state.stage='pick';
+    decideEl.style.display='none';
+    nextRow.style.display='none';
+    setMsg();
+    render();
+  }
+
+  function onPick(i){
+    if(state.stage!=='pick') return;
+    state.selected=i;
+    if(state.prize!==i){
+      state.target=state.prize;            // 当たりを残す
+    }else{
+      var pool=[];
+      for(var k=0;k<state.n;k++){ if(k!==i) pool.push(k); }
+      state.target=pool[rand(pool.length)]; // ハズレからランダムに残す
+    }
+    state.opened=[];
+    for(var k=0;k<state.n;k++){ if(k!==state.selected && k!==state.target) state.opened.push(k); }
+    state.openedCount=state.opened.length;
+    state.stage='decide';
+    setMsg();
+    decideEl.style.display='flex';
+    render();
+  }
+
+  function finish(didSwitch){
+    var finalChoice = didSwitch ? state.target : state.selected;
+    var win = (finalChoice===state.prize);
+    if(didSwitch){ stats.swTot++; if(win) stats.swWin++; }
+    else{ stats.stTot++; if(win) stats.stWin++; }
+    state.last={win:win, sw:didSwitch};
+    state.stage='result';
+    state.opened=[];
+    for(var k=0;k<state.n;k++){ if(k!==state.prize) state.opened.push(k); }
+    decideEl.style.display='none';
+    nextRow.style.display='block';
+    setMsg();
+    render();
+    updateStats();
+  }
+
+  function render(){
+    doorsEl.innerHTML='';
+    for(var i=0;i<state.n;i++){
+      var d=document.createElement('div');
+      d.className='door';
+      var isOpened = state.opened.indexOf(i)>=0;
+      if(state.stage==='result'){
+        d.className+=' opened';
+        d.innerHTML='<span class="face">'+(i===state.prize?'🚗':'🐐')+'</span>';
+        if(i===state.selected){ d.innerHTML='<span class="tag">'+t().firstPickTag+'</span>'+d.innerHTML; }
+      }else if(isOpened){
+        d.className+=' opened';
+        d.innerHTML='<span class="face">🐐</span>';
+      }else{
+        if(i===state.selected) d.className+=' pick';
+        else if(state.stage==='decide' && i===state.target) d.className+=' target';
+        d.innerHTML='<span class="no">'+(i+1)+'</span>';
+      }
+      if(state.stage==='pick'){
+        (function(idx){ d.addEventListener('click',function(){onPick(idx);}); })(i);
+      }else{
+        d.className+=' disabled';
+      }
+      doorsEl.appendChild(d);
+    }
+  }
+
+  function pct(w,tot){ return tot===0 ? '—' : Math.round(w/tot*100)+'%'; }
+
+  function updateStats(){
+    document.getElementById('switchRate').textContent=pct(stats.swWin,stats.swTot);
+    document.getElementById('stayRate').textContent=pct(stats.stWin,stats.stTot);
+    document.getElementById('switchDetail').textContent=t().detail(stats.swWin,stats.swTot);
+    document.getElementById('stayDetail').textContent=t().detail(stats.stWin,stats.stTot);
+    var n=state.n;
+    document.getElementById('switchTheory').textContent=t().theory(n,Math.round((n-1)/n*100));
+    document.getElementById('stayTheory').textContent=t().theory(n,Math.round(1/n*100));
+  }
+
+  function updateThemeBtn(){
+    var dark=document.documentElement.getAttribute('data-theme')==='dark';
+    themeBtn.textContent = dark ? t().themeLight : t().themeDark;
+  }
+
+  function applyLang(){
+    document.documentElement.lang=state.lang;
+    document.getElementById('title').textContent=t().title;
+    document.getElementById('lead').textContent=t().lead;
+    document.getElementById('lblDoorCount').textContent=t().doorCountLabel;
+    newGameBtn.textContent=t().startBtn;
+    stayBtn.textContent=t().stayBtn;
+    switchBtn.textContent=t().switchBtn;
+    nextBtn.textContent=t().nextBtn;
+    document.getElementById('switchHead').textContent=t().switchHead;
+    document.getElementById('stayHead').textContent=t().stayHead;
+    document.getElementById('resetStats').textContent=t().resetStats;
+    document.getElementById('detailsSummary').textContent=t().detailsSummary;
+    document.getElementById('detailsBody').innerHTML=t().detailsBody;
+    document.getElementById('footer').innerHTML=t().footer;
+    langBtn.textContent = state.lang==='ja' ? 'EN' : '日本語';
+    updateThemeBtn();
+    setMsg();
+    updateStats();
+    render();
+  }
+
+  // events
+  range.addEventListener('input',function(){ doornumEl.textContent=range.value; });
+  newGameBtn.addEventListener('click',function(){
+    state.n=parseInt(range.value,10);
+    startGame();
+    updateStats();
+  });
+  stayBtn.addEventListener('click',function(){ finish(false); });
+  switchBtn.addEventListener('click',function(){ finish(true); });
+  nextBtn.addEventListener('click',function(){ startGame(); });
+  document.getElementById('resetStats').addEventListener('click',function(){
+    stats={swWin:0,swTot:0,stWin:0,stTot:0}; updateStats();
+  });
+  themeBtn.addEventListener('click',function(){
+    var dark=document.documentElement.getAttribute('data-theme')==='dark';
+    if(dark){ document.documentElement.removeAttribute('data-theme'); }
+    else{ document.documentElement.setAttribute('data-theme','dark'); }
+    updateThemeBtn();
+  });
+  langBtn.addEventListener('click',function(){
+    state.lang = state.lang==='ja' ? 'en' : 'ja';
+    applyLang();
+  });
+
+  // init
+  state.n=3;
+  startGame();
+  applyLang();
+})();
+</script>
+</body>
+</html>
