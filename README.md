@@ -17,4 +17,4 @@
 ## 制作
 
 [のざたん](https://meetupsensei.com) — 会いに行けるセンセイ  
-Voicy「学びのセカンドオピニオン」/ note / Canvassador 2026
+[Voicy「学びのセカンドオピニオン」](https://voicy.jp/channel/3708) 
